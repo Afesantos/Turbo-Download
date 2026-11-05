@@ -1,0 +1,6 @@
+{
+  "name": "DriveSync Turbo",
+  "description": "Download e sincronização ultrarrápida do Google Drive para pastas locais do computador com aceleração e atualização em tempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
