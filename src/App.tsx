@@ -97,6 +97,8 @@ export default function App() {
     queuedCount: 0,
     completedCount: 0,
     errorCount: 0,
+    isPaused: false,
+    hasActiveDownloads: false,
   });
   const [concurrency, setConcurrency] = useState<number>(downloadManager.getConcurrency());
   const [turboMultiChunk, setTurboMultiChunk] = useState<boolean>(
@@ -327,6 +329,56 @@ export default function App() {
   };
 
   // Download & Sync actions
+  const handleStartDownload = async () => {
+    if (!token) {
+      showToast('Por favor, conecte sua conta Google Drive primeiro.', 'error');
+      return;
+    }
+
+    // 1. If currently paused with pending tasks, resume them
+    if (downloadManager.getIsPaused() && downloadManager.getPendingCount() > 0) {
+      downloadManager.resume();
+      showToast('Downloads retomados!', 'success');
+      return;
+    }
+
+    // 2. If user has selected files, start downloading them
+    if (selectedFileIds.size > 0) {
+      await handleDownloadSelected();
+      return;
+    }
+
+    // 3. If no files selected, download all non-folder files currently displayed
+    if (files.length > 0) {
+      if (!localDirHandle && !localFolderName) {
+        handleQuickSetDownloads();
+      }
+      const filesToEnqueue: { file: DriveFile; pathSegments: string[] }[] = [];
+      for (const item of files) {
+        if (!item.isFolder) {
+          filesToEnqueue.push({ file: item, pathSegments: [] });
+        }
+      }
+      if (filesToEnqueue.length > 0) {
+        downloadManager.enqueueFiles(filesToEnqueue);
+        showToast(
+          `Iniciando download de ${filesToEnqueue.length} arquivo(s) desta pasta!`,
+          'success'
+        );
+      } else {
+        showToast('Esta pasta só contém subpastas. Selecione as pastas que deseja baixar.', 'info');
+      }
+      return;
+    }
+
+    showToast('Nenhum arquivo disponível para download nesta pasta.', 'info');
+  };
+
+  const handleStopDownload = () => {
+    downloadManager.pause();
+    showToast('Downloads interrompidos/pausados.', 'info');
+  };
+
   const handleDownloadSelected = async () => {
     if (!token) return;
     const selectedItems = files.filter((f) => selectedFileIds.has(f.id));
@@ -577,6 +629,11 @@ export default function App() {
                   'info'
                 );
               }}
+              onStartDownload={handleStartDownload}
+              onStopDownload={handleStopDownload}
+              isDownloading={telemetry.hasActiveDownloads && !telemetry.isPaused}
+              isPaused={telemetry.isPaused}
+              hasPendingTasks={telemetry.activeCount > 0 || telemetry.queuedCount > 0}
             />
 
             {/* Step 3: Real-Time Automatic Synchronization Controls */}
@@ -617,6 +674,11 @@ export default function App() {
               isItemWatched={(id) => syncEngine.isItemWatched(id)}
               localFolderConfigured={!!localDirHandle}
               concurrency={concurrency}
+              onStartDownload={handleStartDownload}
+              onStopDownload={handleStopDownload}
+              isDownloading={telemetry.hasActiveDownloads && !telemetry.isPaused}
+              isPaused={telemetry.isPaused}
+              hasPendingTasks={telemetry.activeCount > 0 || telemetry.queuedCount > 0}
             />
           </>
         )}
@@ -627,6 +689,8 @@ export default function App() {
         tasks={tasks}
         telemetry={telemetry}
         onClearCompleted={() => downloadManager.clearCompleted()}
+        onStartDownload={handleStartDownload}
+        onStopDownload={handleStopDownload}
       />
 
       {/* Local Folder Configuration Modal */}

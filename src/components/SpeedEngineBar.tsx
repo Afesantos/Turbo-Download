@@ -5,9 +5,12 @@ import {
   Sliders,
   Flame,
   Layers,
-  ArrowUpRight,
   TrendingUp,
   Cpu,
+  Play,
+  Square,
+  Pause,
+  RefreshCw,
 } from 'lucide-react';
 import { formatSpeed, formatBytes } from '../utils/formatters';
 
@@ -20,6 +23,11 @@ interface SpeedEngineBarProps {
   onConcurrencyChange: (threads: number) => void;
   turboMultiChunk: boolean;
   onToggleTurboMultiChunk: (enabled: boolean) => void;
+  onStartDownload: () => void;
+  onStopDownload: () => void;
+  isDownloading: boolean;
+  isPaused: boolean;
+  hasPendingTasks: boolean;
 }
 
 export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
@@ -31,15 +39,19 @@ export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
   onConcurrencyChange,
   turboMultiChunk,
   onToggleTurboMultiChunk,
+  onStartDownload,
+  onStopDownload,
+  isDownloading,
+  isPaused,
+  hasPendingTasks,
 }) => {
   const CONCURRENCY_PRESETS = [
-    { threads: 2, label: '2x Leve', color: 'from-blue-600 to-cyan-600' },
-    { threads: 4, label: '4x Rápido', color: 'from-cyan-600 to-teal-600' },
-    { threads: 8, label: '8x Turbo', color: 'from-amber-600 to-orange-600' },
-    { threads: 16, label: '16x Extremo', color: 'from-orange-600 to-rose-600' },
+    { threads: 2, label: '2x Leve' },
+    { threads: 4, label: '4x Rápido' },
+    { threads: 8, label: '8x Turbo' },
+    { threads: 16, label: '16x Extremo' },
   ];
 
-  // Visual calculation for gauge percentage (relative to max expected speed, e.g. 50 MB/s or peak)
   const maxScale = Math.max(20 * 1024 * 1024, peakSpeed * 1.1);
   const gaugePercent = Math.min(100, Math.round((currentSpeed / maxScale) * 100));
 
@@ -53,7 +65,7 @@ export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
         {/* Speedometer display */}
         <div className="flex items-center space-x-5">
           <div className="relative flex items-center justify-center w-20 h-20 rounded-2xl bg-slate-950 border border-slate-800 p-2 shadow-inner">
-            <Gauge className="w-10 h-10 text-orange-500 animate-pulse" />
+            <Gauge className={`w-10 h-10 ${isDownloading ? 'text-orange-500 animate-pulse' : 'text-slate-600'}`} />
             <div
               className="absolute inset-0 rounded-2xl border-2 border-orange-500/30"
               style={{
@@ -68,8 +80,14 @@ export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
                 <Flame className="w-3.5 h-3.5 fill-orange-400" />
                 <span>Motor de Aceleração Turbo</span>
               </span>
-              <span className="bg-emerald-950/80 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-800/80">
-                Multi-Thread Concorrente
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                isDownloading
+                  ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/80 animate-pulse'
+                  : isPaused
+                  ? 'bg-amber-950/80 text-amber-400 border-amber-800/80'
+                  : 'bg-slate-900 text-slate-400 border-slate-800'
+              }`}>
+                {isDownloading ? 'Em Execução' : isPaused ? 'Pausado' : 'Pronto'}
               </span>
             </div>
 
@@ -100,7 +118,7 @@ export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
         </div>
 
         {/* Speed Bar Progress Indicator */}
-        <div className="flex-1 max-w-md hidden xl:block">
+        <div className="flex-1 max-w-sm hidden xl:block">
           <div className="flex justify-between items-center text-xs text-slate-400 mb-1.5 font-medium">
             <span className="flex items-center space-x-1">
               <Cpu className="w-3.5 h-3.5 text-slate-400" />
@@ -125,10 +143,48 @@ export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
           </div>
         </div>
 
-        {/* Speed Controls: Concurrency & Multi-chunk */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        {/* Action Controls: START DOWNLOAD & STOP DOWNLOAD & Tuning */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Main Action Buttons: Iniciar Download & Parar Download */}
+          <div className="flex items-center space-x-2">
+            {/* INICIAR DOWNLOAD */}
+            <button
+              onClick={onStartDownload}
+              className={`flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 ${
+                isDownloading
+                  ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-600/40'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/25 ring-2 ring-emerald-500/30'
+              }`}
+              title="Iniciar ou retomar downloads"
+            >
+              {isDownloading ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+              ) : (
+                <Play className="w-4 h-4 fill-white text-white" />
+              )}
+              <span>Iniciar Download</span>
+            </button>
+
+            {/* PARAR DOWNLOAD */}
+            <button
+              onClick={onStopDownload}
+              disabled={!isDownloading && !hasPendingTasks}
+              className={`flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 ${
+                isDownloading || hasPendingTasks
+                  ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/25 ring-2 ring-rose-500/30'
+                  : 'bg-slate-800/60 text-slate-500 border border-slate-700/60 cursor-not-allowed opacity-50'
+              }`}
+              title="Parar imediatamente todas as transferências ativas"
+            >
+              <Square className="w-4 h-4 fill-current" />
+              <span>Parar Download</span>
+            </button>
+          </div>
+
+          <div className="h-6 w-px bg-slate-800 hidden sm:block" />
+
           {/* Concurrency Selector */}
-          <div className="bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 flex items-center space-x-1">
+          <div className="bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 flex items-center space-x-1 justify-center">
             {CONCURRENCY_PRESETS.map((p) => {
               const isSelected = concurrency === p.threads;
               return (
@@ -151,7 +207,7 @@ export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
           {/* Multi-Chunk Range switch */}
           <button
             onClick={() => onToggleTurboMultiChunk(!turboMultiChunk)}
-            className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+            className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
               turboMultiChunk
                 ? 'bg-orange-950/50 text-orange-300 border-orange-800/80 shadow-md shadow-orange-500/10'
                 : 'bg-slate-950/50 text-slate-400 border-slate-800'

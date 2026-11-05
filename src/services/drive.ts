@@ -195,7 +195,8 @@ export const listAllFilesRecursively = async (
 export const downloadFileStream = async (
   accessToken: string,
   file: DriveFile,
-  onProgress?: (bytesDownloaded: number, totalBytes: number | undefined) => void
+  onProgress?: (bytesDownloaded: number, totalBytes: number | undefined) => void,
+  signal?: AbortSignal
 ): Promise<{
   stream: ReadableStream<Uint8Array>;
   totalBytes?: number;
@@ -221,6 +222,7 @@ export const downloadFileStream = async (
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    signal,
   });
 
   if (!response.ok) {
@@ -281,7 +283,8 @@ export const downloadLargeFileMultiChunk = async (
   accessToken: string,
   file: DriveFile,
   numChunks: number = 4,
-  onProgress?: (bytesDownloaded: number, totalBytes: number) => void
+  onProgress?: (bytesDownloaded: number, totalBytes: number) => void,
+  signal?: AbortSignal
 ): Promise<{
   blob: Blob;
   finalFileName: string;
@@ -289,9 +292,14 @@ export const downloadLargeFileMultiChunk = async (
   const totalBytes = parseInt(file.size || '0', 10);
   if (!totalBytes || totalBytes < 16 * 1024 * 1024 || isGoogleWorkspaceDoc(file.mimeType)) {
     // Fall back to direct stream
-    const { stream, finalFileName } = await downloadFileStream(accessToken, file, (b, t) => {
-      if (onProgress && t) onProgress(b, t);
-    });
+    const { stream, finalFileName } = await downloadFileStream(
+      accessToken,
+      file,
+      (b, t) => {
+        if (onProgress && t) onProgress(b, t);
+      },
+      signal
+    );
     const response = new Response(stream);
     const blob = await response.blob();
     return { blob, finalFileName };
@@ -315,6 +323,7 @@ export const downloadLargeFileMultiChunk = async (
         Authorization: `Bearer ${accessToken}`,
         Range: `bytes=${range.start}-${range.end}`,
       },
+      signal,
     });
 
     if (!res.ok && res.status !== 206) {

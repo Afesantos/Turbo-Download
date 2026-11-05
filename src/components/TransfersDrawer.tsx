@@ -10,6 +10,8 @@ import {
   Flame,
   Clock,
   Trash2,
+  Play,
+  Square,
 } from 'lucide-react';
 import { DownloadTask, SpeedTelemetry } from '../services/downloadManager';
 import { formatBytes, formatSpeed } from '../utils/formatters';
@@ -18,12 +20,16 @@ interface TransfersDrawerProps {
   tasks: DownloadTask[];
   telemetry: SpeedTelemetry;
   onClearCompleted: () => void;
+  onStartDownload?: () => void;
+  onStopDownload?: () => void;
 }
 
 export const TransfersDrawer: React.FC<TransfersDrawerProps> = ({
   tasks,
   telemetry,
   onClearCompleted,
+  onStartDownload,
+  onStopDownload,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -81,7 +87,33 @@ export const TransfersDrawer: React.FC<TransfersDrawerProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
+            {hasActivity && onStopDownload && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStopDownload();
+                }}
+                className="p-1.5 rounded-lg bg-rose-600/30 hover:bg-rose-600 text-rose-300 hover:text-white transition-colors"
+                title="Parar Download"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+              </button>
+            )}
+
+            {!hasActivity && queuedTasks.length > 0 && onStartDownload && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartDownload();
+                }}
+                className="p-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white transition-colors"
+                title="Iniciar Download"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+              </button>
+            )}
+
             <button
               onClick={(e) => {
                 e.stopPropagation();

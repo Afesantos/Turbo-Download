@@ -20,6 +20,7 @@ import {
   ExternalLink,
   CheckCircle,
   Archive,
+  Play,
 } from 'lucide-react';
 import { DriveFile, isGoogleWorkspaceDoc } from '../services/drive';
 import { formatBytes, formatTimeAgo, formatDateTime } from '../utils/formatters';
@@ -48,6 +49,11 @@ interface DriveExplorerProps {
   isItemWatched: (id: string) => boolean;
   localFolderConfigured: boolean;
   concurrency: number;
+  onStartDownload?: () => void;
+  onStopDownload?: () => void;
+  isDownloading?: boolean;
+  isPaused?: boolean;
+  hasPendingTasks?: boolean;
 }
 
 export const DriveExplorer: React.FC<DriveExplorerProps> = ({
@@ -69,6 +75,11 @@ export const DriveExplorer: React.FC<DriveExplorerProps> = ({
   isItemWatched,
   localFolderConfigured,
   concurrency,
+  onStartDownload,
+  onStopDownload,
+  isDownloading = false,
+  isPaused = false,
+  hasPendingTasks = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<
@@ -212,9 +223,38 @@ export const DriveExplorer: React.FC<DriveExplorerProps> = ({
           })}
         </nav>
 
-        {/* Refresh and File count */}
-        <div className="flex items-center space-x-3 text-xs text-slate-400">
-          <span>{files.length} itens no Drive</span>
+        {/* Actions, Refresh and File count */}
+        <div className="flex items-center space-x-2 text-xs">
+          {onStartDownload && (
+            <button
+              onClick={onStartDownload}
+              className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+              title="Iniciar download de arquivos"
+            >
+              <Play className="w-3.5 h-3.5 fill-white" />
+              <span>Iniciar Download</span>
+            </button>
+          )}
+
+          {onStopDownload && (
+            <button
+              onClick={onStopDownload}
+              disabled={!isDownloading && !hasPendingTasks}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
+                isDownloading || hasPendingTasks
+                  ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/25 ring-2 ring-rose-500/30'
+                  : 'bg-slate-800/60 text-slate-500 border border-slate-700/60 cursor-not-allowed opacity-40'
+              }`}
+              title="Parar downloads imediatamente"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>Parar Download</span>
+            </button>
+          )}
+
+          <div className="h-4 w-px bg-slate-800 hidden sm:block" />
+
+          <span className="text-slate-400 hidden sm:inline">{files.length} itens</span>
           <button
             onClick={onRefresh}
             disabled={isLoading}
@@ -294,15 +334,27 @@ export const DriveExplorer: React.FC<DriveExplorerProps> = ({
               <span>Sincronizar em Tempo Real</span>
             </button>
 
-            {/* Fast parallel download selected */}
+            {/* Iniciar Download Selecionados */}
             <button
               onClick={onDownloadSelected}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-orange-500/20 active:scale-95 transition-all"
-              title={`Baixar com aceleração de ${concurrency} conexões simultâneas`}
+              className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/25 ring-1 ring-emerald-400/40 active:scale-95 transition-all"
+              title={`Iniciar download dos ${selectedFileIds.size} itens selecionados`}
             >
-              <Flame className="w-3.5 h-3.5 fill-white" />
-              <span>Baixar com Turbo ({concurrency}x)</span>
+              <Play className="w-3.5 h-3.5 fill-white" />
+              <span>Iniciar Download ({selectedFileIds.size})</span>
             </button>
+
+            {/* Parar Download (when downloading or pending) */}
+            {(isDownloading || hasPendingTasks) && onStopDownload && (
+              <button
+                onClick={onStopDownload}
+                className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-rose-600/25 ring-1 ring-rose-400/40 active:scale-95 transition-all"
+                title="Parar imediatamente os downloads em andamento"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>Parar Download</span>
+              </button>
+            )}
 
             {/* Zip archive download */}
             <button
