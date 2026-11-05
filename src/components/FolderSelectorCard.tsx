@@ -4,26 +4,29 @@ import {
   HardDrive,
   CheckCircle,
   AlertTriangle,
-  Sparkles,
-  RefreshCw,
   FolderSync,
+  ExternalLink,
+  Download,
 } from 'lucide-react';
-import { isFileSystemAccessSupported } from '../services/localFileSystem';
+import { isInsideIframe } from '../services/localFileSystem';
 
 interface FolderSelectorCardProps {
   localFolderName: string | null;
-  onSelectFolder: () => void;
-  isSelecting: boolean;
+  onOpenFolderModal: () => void;
+  onQuickSetDownloads: () => void;
   onClearFolder?: () => void;
+  isNativeDisk: boolean;
 }
 
 export const FolderSelectorCard: React.FC<FolderSelectorCardProps> = ({
   localFolderName,
-  onSelectFolder,
-  isSelecting,
+  onOpenFolderModal,
+  onQuickSetDownloads,
   onClearFolder,
+  isNativeDisk,
 }) => {
-  const isSupported = isFileSystemAccessSupported();
+  const inIframe = isInsideIframe();
+  const appUrl = typeof window !== 'undefined' ? window.location.href : '';
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
@@ -55,44 +58,65 @@ export const FolderSelectorCard: React.FC<FolderSelectorCardProps> = ({
               {localFolderName ? (
                 <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/70 text-emerald-300 border border-emerald-800/70">
                   <CheckCircle className="w-3 h-3" />
-                  <span>Sincronização Nativa Ativa</span>
+                  <span>
+                    {isNativeDisk ? 'Gravação Direta no Disco' : 'Download Rápido Ativo'}
+                  </span>
                 </span>
               ) : (
                 <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/70 text-amber-300 border border-amber-800/70">
                   <AlertTriangle className="w-3 h-3" />
-                  <span>Ação Necessária</span>
+                  <span>Configuração Pendente</span>
                 </span>
               )}
             </div>
 
             {localFolderName ? (
-              <div className="mt-1 flex items-center space-x-2 text-sm text-slate-300 font-mono bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800 max-w-fit">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300 font-mono bg-slate-950/60 px-3 py-1 rounded-lg border border-slate-800 max-w-fit">
                 <HardDrive className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                 <span className="font-bold text-white truncate max-w-xs sm:max-w-md">
                   {localFolderName}
                 </span>
                 <span className="text-xs text-emerald-400 font-sans font-medium">
-                  • Gravação direta em disco
+                  {isNativeDisk ? '• Acesso nativo ao disco' : '• Salvo na pasta Downloads do PC'}
                 </span>
               </div>
             ) : (
               <p className="text-xs text-slate-400 mt-1 max-w-xl">
                 Escolha a pasta do seu computador onde os arquivos do Google Drive serão salvos e
-                mantidos atualizados automaticamente sem diálogos repetitivos de download.
+                mantidos sincronizados em tempo real.
               </p>
             )}
 
-            {!isSupported && (
-              <div className="mt-2 text-xs text-amber-400 bg-amber-950/40 border border-amber-800/50 rounded-lg p-2 max-w-lg">
-                ⚠️ Seu navegador não suporta escrita direta contínua no disco (File System Access).
-                Os arquivos serão baixados pelo navegador. Use <strong>Google Chrome, Microsoft Edge ou Brave</strong> para sincronização nativa na pasta.
+            {inIframe && (
+              <div className="mt-2 flex items-center space-x-2 text-[11px] text-slate-400">
+                <span>Dica: Para selecionar qualquer pasta física específica do disco,</span>
+                <a
+                  href={appUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline font-semibold flex items-center space-x-1"
+                >
+                  <span>abra o app em nova aba</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             )}
           </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center space-x-3 shrink-0 self-end md:self-center">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-center">
+          {!localFolderName && (
+            <button
+              onClick={onQuickSetDownloads}
+              className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+              title="Ativa a pasta de Downloads com 1 clique"
+            >
+              <Download className="w-4 h-4" />
+              <span>Usar Pasta Downloads</span>
+            </button>
+          )}
+
           {localFolderName && onClearFolder && (
             <button
               onClick={onClearFolder}
@@ -103,17 +127,12 @@ export const FolderSelectorCard: React.FC<FolderSelectorCardProps> = ({
           )}
 
           <button
-            onClick={onSelectFolder}
-            disabled={isSelecting}
-            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold px-4 py-2.5 rounded-xl text-xs shadow-lg shadow-blue-600/25 active:scale-95 transition-all disabled:opacity-50"
+            onClick={onOpenFolderModal}
+            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold px-4 py-2.5 rounded-xl text-xs shadow-lg shadow-blue-600/25 active:scale-95 transition-all"
           >
-            {isSelecting ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <FolderOpen className="w-4 h-4" />
-            )}
+            <FolderOpen className="w-4 h-4" />
             <span>
-              {localFolderName ? 'Alterar Pasta Local' : 'Escolher Pasta no Computador'}
+              {localFolderName ? 'Configurar Pasta' : 'Escolher Pasta no Computador'}
             </span>
           </button>
         </div>

@@ -12,7 +12,17 @@ export interface LocalFolderInfo {
   name: string;
   isSupported: boolean;
   hasPermission: boolean;
+  isIframe: boolean;
 }
+
+// Check if app is running in an iframe (e.g. AI Studio preview)
+export const isInsideIframe = (): boolean => {
+  try {
+    return typeof window !== 'undefined' && window.self !== window.top;
+  } catch {
+    return true;
+  }
+};
 
 // Check if File System Access API is supported in the user's browser
 export const isFileSystemAccessSupported = (): boolean => {
@@ -101,10 +111,32 @@ export const verifyPermission = async (
   return false;
 };
 
+const FALLBACK_FOLDER_KEY = 'drivesync_fallback_folder';
+
+export const saveFallbackFolderName = (name: string) => {
+  try {
+    localStorage.setItem(FALLBACK_FOLDER_KEY, name);
+  } catch {}
+};
+
+export const getFallbackFolderName = (): string | null => {
+  try {
+    return localStorage.getItem(FALLBACK_FOLDER_KEY);
+  } catch {
+    return null;
+  }
+};
+
+export const clearFallbackFolder = () => {
+  try {
+    localStorage.removeItem(FALLBACK_FOLDER_KEY);
+  } catch {}
+};
+
 // Prompt user to select directory on computer
 export const pickLocalDirectory = async (): Promise<FileSystemDirectoryHandle | null> => {
   if (!isFileSystemAccessSupported()) {
-    throw new Error('Seu navegador atual não suporta a API File System Access. Recomendamos Google Chrome, Edge, Brave ou Opera para sincronização direta na pasta local.');
+    throw new Error('NOT_SUPPORTED');
   }
 
   try {
@@ -116,14 +148,23 @@ export const pickLocalDirectory = async (): Promise<FileSystemDirectoryHandle | 
 
     const hasPermission = await verifyPermission(dirHandle, true);
     if (!hasPermission) {
-      throw new Error('Permissão de escrita na pasta selecionada foi recusada.');
+      throw new Error('PERMISSION_DENIED');
     }
 
     await saveStoredDirectoryHandle(dirHandle);
+    clearFallbackFolder();
     return dirHandle;
   } catch (error: any) {
     if (error.name === 'AbortError') {
       return null; // User cancelled
+    }
+    if (
+      error.name === 'SecurityError' ||
+      error.message?.includes('Cross-origin') ||
+      error.message?.includes('iframe') ||
+      error.message?.includes('subframe')
+    ) {
+      throw new Error('IFRAME_SECURITY_RESTRICTION');
     }
     throw error;
   }

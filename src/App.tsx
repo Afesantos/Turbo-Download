@@ -22,6 +22,10 @@ import {
   getStoredDirectoryHandle,
   clearStoredDirectoryHandle,
   verifyPermission,
+  saveFallbackFolderName,
+  getFallbackFolderName,
+  clearFallbackFolder,
+  isInsideIframe,
 } from './services/localFileSystem';
 import {
   downloadManager,
@@ -38,6 +42,7 @@ import { exportSelectedFilesToZip } from './services/zipExport';
 
 import { Header } from './components/Header';
 import { FolderSelectorCard } from './components/FolderSelectorCard';
+import { FolderModal } from './components/FolderModal';
 import { SpeedEngineBar } from './components/SpeedEngineBar';
 import { AutoSyncPanel } from './components/AutoSyncPanel';
 import { DriveExplorer } from './components/DriveExplorer';
@@ -70,6 +75,8 @@ export default function App() {
   const [localDirHandle, setLocalDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [localFolderName, setLocalFolderName] = useState<string | null>(null);
   const [isSelectingFolder, setIsSelectingFolder] = useState<boolean>(false);
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState<boolean>(false);
+  const [isNativeDisk, setIsNativeDisk] = useState<boolean>(false);
 
   // Google Drive files & navigation
   const [currentFolderId, setCurrentFolderId] = useState<string>('root');
@@ -138,7 +145,7 @@ export default function App() {
       }
     );
 
-    // Try restoring directory handle from IndexedDB
+    // Try restoring directory handle from IndexedDB or fallback
     getStoredDirectoryHandle().then(async (handle) => {
       if (handle) {
         try {
@@ -146,11 +153,24 @@ export default function App() {
           if (hasPerm) {
             setLocalDirHandle(handle);
             setLocalFolderName(handle.name);
+            setIsNativeDisk(true);
             downloadManager.setTargetDirectory(handle);
+            return;
           }
         } catch {
           // ignore
         }
+      }
+      // Check fallback folder
+      const fallback = getFallbackFolderName();
+      if (fallback) {
+        setLocalFolderName(`Downloads / ${fallback}`);
+        setIsNativeDisk(false);
+      } else {
+        // Automatically default to Downloads / DriveSync so user always has ready-to-go destination
+        saveFallbackFolderName('DriveSync');
+        setLocalFolderName('Downloads / DriveSync');
+        setIsNativeDisk(false);
       }
     });
 
@@ -228,28 +248,47 @@ export default function App() {
   };
 
   // Local folder selection
-  const handleSelectLocalFolder = async () => {
+  const handleSelectNativeFolder = async (): Promise<boolean> => {
     setIsSelectingFolder(true);
     try {
       const handle = await pickLocalDirectory();
       if (handle) {
         setLocalDirHandle(handle);
         setLocalFolderName(handle.name);
+        setIsNativeDisk(true);
         downloadManager.setTargetDirectory(handle);
-        showToast(`Pasta local "${handle.name}" vinculada para gravação direta!`, 'success');
+        showToast(`Pasta física "${handle.name}" vinculada para gravação direta!`, 'success');
+        return true;
       }
+      return false;
     } catch (err: any) {
-      console.error('Erro ao escolher pasta:', err);
-      showToast(err?.message || 'Erro ao selecionar pasta local.', 'error');
+      console.warn('Erro ao selecionar pasta física:', err);
+      return false;
     } finally {
       setIsSelectingFolder(false);
     }
   };
 
+  const handleSelectDownloadsFolder = (subfolder: string) => {
+    saveFallbackFolderName(subfolder);
+    clearStoredDirectoryHandle();
+    setLocalDirHandle(null);
+    setLocalFolderName(`Downloads / ${subfolder}`);
+    setIsNativeDisk(false);
+    downloadManager.setTargetDirectory(null);
+    showToast(`Pasta configurada: Downloads/${subfolder} (Download direto)`, 'success');
+  };
+
+  const handleQuickSetDownloads = () => {
+    handleSelectDownloadsFolder('DriveSync');
+  };
+
   const handleClearLocalFolder = async () => {
     await clearStoredDirectoryHandle();
+    clearFallbackFolder();
     setLocalDirHandle(null);
     setLocalFolderName(null);
+    setIsNativeDisk(false);
     downloadManager.setTargetDirectory(null);
     showToast('Pasta local desvinculada.', 'info');
   };
@@ -293,13 +332,8 @@ export default function App() {
     const selectedItems = files.filter((f) => selectedFileIds.has(f.id));
     if (selectedItems.length === 0) return;
 
-    if (!localDirHandle) {
-      const confirmDownload = window.confirm(
-        'Você ainda não escolheu uma pasta no computador. Deseja escolher uma agora para download direto no disco? Clique em OK para escolher, ou Cancelar para baixar pelo navegador.'
-      );
-      if (confirmDownload) {
-        await handleSelectLocalFolder();
-      }
+    if (!localDirHandle && !localFolderName) {
+      handleQuickSetDownloads();
     }
 
     const filesToEnqueue: { file: DriveFile; pathSegments: string[] }[] = [];
@@ -466,11 +500,11 @@ export default function App() {
                 </button>
 
                 <button
-                  onClick={handleSelectLocalFolder}
+                  onClick={() => setIsFolderModalOpen(true)}
                   className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-5 py-3.5 rounded-2xl text-sm border border-slate-700 transition-all"
                 >
                   <FolderOpen className="w-4 h-4 text-blue-400" />
-                  <span>Escolher Pasta no Computador</span>
+                  <span>Configurar Pasta no Computador</span>
                 </button>
               </div>
 
@@ -516,9 +550,10 @@ export default function App() {
             {/* Step 1: Local Folder Selector */}
             <FolderSelectorCard
               localFolderName={localFolderName}
-              onSelectFolder={handleSelectLocalFolder}
-              isSelecting={isSelectingFolder}
+              onOpenFolderModal={() => setIsFolderModalOpen(true)}
+              onQuickSetDownloads={handleQuickSetDownloads}
               onClearFolder={handleClearLocalFolder}
+              isNativeDisk={isNativeDisk}
             />
 
             {/* Step 2: Download Speed Engine & Concurrency Controls */}
@@ -592,6 +627,16 @@ export default function App() {
         tasks={tasks}
         telemetry={telemetry}
         onClearCompleted={() => downloadManager.clearCompleted()}
+      />
+
+      {/* Local Folder Configuration Modal */}
+      <FolderModal
+        isOpen={isFolderModalOpen}
+        onClose={() => setIsFolderModalOpen(false)}
+        currentFolderName={localFolderName}
+        onSelectNativeFolder={handleSelectNativeFolder}
+        onSelectDownloadsFolder={handleSelectDownloadsFolder}
+        isSelecting={isSelectingFolder}
       />
     </div>
   );
