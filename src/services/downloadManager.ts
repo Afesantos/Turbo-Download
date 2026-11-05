@@ -287,7 +287,7 @@ class DownloadManager {
         this.activeControllers.delete(task.id);
         this.activeTasks.delete(task.id);
 
-        if (task.status === 'downloading') {
+        if (task.status === 'completed' || task.status === 'downloading') {
           task.status = 'completed';
           task.progressPercent = 100;
           task.completedAt = Date.now();
@@ -345,8 +345,19 @@ class DownloadManager {
       const fileBytes = parseInt(task.file.size || '0', 10);
       const isHugeFile = fileBytes > 25 * 1024 * 1024; // > 25MB
 
-      // Direct write to computer folder if FileSystemDirectoryHandle is available
+      let canWriteDirectly = false;
       if (this.targetDirectoryHandle) {
+        try {
+          canWriteDirectly = await (this.targetDirectoryHandle as any).queryPermission({ mode: 'readwrite' }) === 'granted';
+          if (!canWriteDirectly) {
+            canWriteDirectly = await (this.targetDirectoryHandle as any).requestPermission({ mode: 'readwrite' }) === 'granted';
+          }
+        } catch {
+          canWriteDirectly = false;
+        }
+      }
+
+      if (canWriteDirectly && this.targetDirectoryHandle) {
         if (this.turboMultiChunk && isHugeFile && !task.file.exportFormat) {
           // Accelerated multi-range parallel chunk download
           const { blob, finalFileName } = await downloadLargeFileMultiChunk(
@@ -382,7 +393,7 @@ class DownloadManager {
           );
         }
       } else {
-        // Fallback: in-memory stream to browser download
+        // Fallback: high-speed stream to browser download
         const { stream, totalBytes, finalFileName } = await downloadFileStream(
           this.accessToken,
           task.file,

@@ -47,6 +47,7 @@ import { SpeedEngineBar } from './components/SpeedEngineBar';
 import { AutoSyncPanel } from './components/AutoSyncPanel';
 import { DriveExplorer } from './components/DriveExplorer';
 import { TransfersDrawer } from './components/TransfersDrawer';
+import { CenterProgressOverlay } from './components/CenterProgressOverlay';
 import {
   Zap,
   Cloud,
@@ -727,6 +728,15 @@ export default function App() {
         onSelectNativeFolder={handleSelectNativeFolder}
         onSelectDownloadsFolder={handleSelectDownloadsFolder}
         isSelecting={isSelectingFolder}
+      />
+
+      {/* Prominent Center Progress Bar Overlay when downloading */}
+      <CenterProgressOverlay
+        tasks={tasks}
+        telemetry={telemetry}
+        onStopDownload={handleStopDownload}
+        localFolderName={localFolderName}
+        concurrency={concurrency}
       />
     </div>
   );
