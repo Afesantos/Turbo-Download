@@ -145,40 +145,27 @@ export const SpeedEngineBar: React.FC<SpeedEngineBarProps> = ({
 
         {/* Action Controls: START DOWNLOAD & STOP DOWNLOAD & Tuning */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Main Action Buttons: Iniciar Download & Parar Download */}
+          {/* Dynamic Action Button: Changes between Iniciar o Download and Parar o Download */}
           <div className="flex items-center space-x-2">
-            {/* INICIAR DOWNLOAD */}
-            <button
-              onClick={onStartDownload}
-              className={`flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 ${
-                isDownloading
-                  ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-600/40'
-                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/25 ring-2 ring-emerald-500/30'
-              }`}
-              title="Iniciar ou retomar downloads"
-            >
-              {isDownloading ? (
-                <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
-              ) : (
+            {isDownloading ? (
+              <button
+                onClick={onStopDownload}
+                className="flex items-center justify-center space-x-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xl active:scale-95 bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30 ring-2 ring-rose-500/40"
+                title="Parar imediatamente todas as transferências ativas"
+              >
+                <Square className="w-4 h-4 fill-current animate-pulse" />
+                <span>Parar o Download</span>
+              </button>
+            ) : (
+              <button
+                onClick={onStartDownload}
+                className="flex items-center justify-center space-x-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xl active:scale-95 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30 ring-2 ring-emerald-500/40"
+                title="Iniciar o download para a pasta local"
+              >
                 <Play className="w-4 h-4 fill-white text-white" />
-              )}
-              <span>Iniciar Download</span>
-            </button>
-
-            {/* PARAR DOWNLOAD */}
-            <button
-              onClick={onStopDownload}
-              disabled={!isDownloading && !hasPendingTasks}
-              className={`flex-1 sm:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95 ${
-                isDownloading || hasPendingTasks
-                  ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/25 ring-2 ring-rose-500/30'
-                  : 'bg-slate-800/60 text-slate-500 border border-slate-700/60 cursor-not-allowed opacity-50'
-              }`}
-              title="Parar imediatamente todas as transferências ativas"
-            >
-              <Square className="w-4 h-4 fill-current" />
-              <span>Parar Download</span>
-            </button>
+                <span>{isPaused && hasPendingTasks ? 'Continuar o Download' : 'Iniciar o Download'}</span>
+              </button>
+            )}
           </div>
 
           <div className="h-6 w-px bg-slate-800 hidden sm:block" />

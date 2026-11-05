@@ -225,31 +225,28 @@ export const DriveExplorer: React.FC<DriveExplorerProps> = ({
 
         {/* Actions, Refresh and File count */}
         <div className="flex items-center space-x-2 text-xs">
-          {onStartDownload && (
-            <button
-              onClick={onStartDownload}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
-              title="Iniciar download de arquivos"
-            >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              <span>Iniciar Download</span>
-            </button>
-          )}
-
-          {onStopDownload && (
-            <button
-              onClick={onStopDownload}
-              disabled={!isDownloading && !hasPendingTasks}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
-                isDownloading || hasPendingTasks
-                  ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/25 ring-2 ring-rose-500/30'
-                  : 'bg-slate-800/60 text-slate-500 border border-slate-700/60 cursor-not-allowed opacity-40'
-              }`}
-              title="Parar downloads imediatamente"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" />
-              <span>Parar Download</span>
-            </button>
+          {isDownloading ? (
+            onStopDownload && (
+              <button
+                onClick={onStopDownload}
+                className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-md shadow-rose-600/25 ring-2 ring-rose-500/30 active:scale-95 transition-all"
+                title="Parar downloads imediatamente"
+              >
+                <Square className="w-3.5 h-3.5 fill-current animate-pulse" />
+                <span>Parar o Download</span>
+              </button>
+            )
+          ) : (
+            onStartDownload && (
+              <button
+                onClick={onStartDownload}
+                className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+                title="Iniciar o download de arquivos para o computador"
+              >
+                <Play className="w-3.5 h-3.5 fill-white" />
+                <span>{isPaused && hasPendingTasks ? 'Continuar o Download' : 'Iniciar o Download'}</span>
+              </button>
+            )
           )}
 
           <div className="h-4 w-px bg-slate-800 hidden sm:block" />
@@ -334,25 +331,26 @@ export const DriveExplorer: React.FC<DriveExplorerProps> = ({
               <span>Sincronizar em Tempo Real</span>
             </button>
 
-            {/* Iniciar Download Selecionados */}
-            <button
-              onClick={onDownloadSelected}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/25 ring-1 ring-emerald-400/40 active:scale-95 transition-all"
-              title={`Iniciar download dos ${selectedFileIds.size} itens selecionados`}
-            >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              <span>Iniciar Download ({selectedFileIds.size})</span>
-            </button>
-
-            {/* Parar Download (when downloading or pending) */}
-            {(isDownloading || hasPendingTasks) && onStopDownload && (
+            {/* Dynamic Iniciar / Parar o Download */}
+            {isDownloading ? (
+              onStopDownload && (
+                <button
+                  onClick={onStopDownload}
+                  className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-rose-600/30 ring-2 ring-rose-400/40 active:scale-95 transition-all"
+                  title="Parar imediatamente os downloads em andamento"
+                >
+                  <Square className="w-3.5 h-3.5 fill-current animate-pulse" />
+                  <span>Parar o Download</span>
+                </button>
+              )
+            ) : (
               <button
-                onClick={onStopDownload}
-                className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-rose-600/25 ring-1 ring-rose-400/40 active:scale-95 transition-all"
-                title="Parar imediatamente os downloads em andamento"
+                onClick={onDownloadSelected}
+                className="flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md shadow-emerald-600/25 ring-1 ring-emerald-400/40 active:scale-95 transition-all"
+                title={`Iniciar download dos ${selectedFileIds.size} itens selecionados`}
               >
-                <Square className="w-3.5 h-3.5 fill-current" />
-                <span>Parar Download</span>
+                <Play className="w-3.5 h-3.5 fill-white" />
+                <span>Iniciar o Download ({selectedFileIds.size})</span>
               </button>
             )}
 

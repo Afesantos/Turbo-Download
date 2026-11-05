@@ -176,8 +176,11 @@ export const getOrCreateSubdirectory = async (
   pathSegments: string[]
 ): Promise<FileSystemDirectoryHandle> => {
   let currentHandle = rootHandle;
-  for (const segment of pathSegments) {
-    if (!segment.trim()) continue;
+  for (const rawSegment of pathSegments) {
+    if (!rawSegment) continue;
+    // Replace characters forbidden by OS filesystems: < > : " / \ | ? *
+    const segment = rawSegment.trim().replace(/[<>:"/\\|?*]/g, '_');
+    if (!segment) continue;
     currentHandle = await currentHandle.getDirectoryHandle(segment, { create: true });
   }
   return currentHandle;

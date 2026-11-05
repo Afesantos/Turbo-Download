@@ -328,6 +328,11 @@ export default function App() {
     setSelectedFileIds(new Set());
   };
 
+  // Compute relative folder path from breadcrumbs to recreate the identical structure locally
+  const getCurrentFolderPath = (): string[] => {
+    return breadcrumbs.slice(1).map((b) => b.name);
+  };
+
   // Download & Sync actions
   const handleStartDownload = async () => {
     if (!token) {
@@ -348,25 +353,34 @@ export default function App() {
       return;
     }
 
-    // 3. If no files selected, download all non-folder files currently displayed
+    // 3. If no files selected, download all files and folders currently displayed
     if (files.length > 0) {
       if (!localDirHandle && !localFolderName) {
         handleQuickSetDownloads();
       }
+      const currentFolderSegments = getCurrentFolderPath();
       const filesToEnqueue: { file: DriveFile; pathSegments: string[] }[] = [];
+
       for (const item of files) {
-        if (!item.isFolder) {
-          filesToEnqueue.push({ file: item, pathSegments: [] });
+        if (item.isFolder) {
+          const recursive = await listAllFilesRecursively(token, item.id, [
+            ...currentFolderSegments,
+            item.name,
+          ]);
+          filesToEnqueue.push(...recursive);
+        } else {
+          filesToEnqueue.push({ file: item, pathSegments: currentFolderSegments });
         }
       }
+
       if (filesToEnqueue.length > 0) {
         downloadManager.enqueueFiles(filesToEnqueue);
         showToast(
-          `Iniciando download de ${filesToEnqueue.length} arquivo(s) desta pasta!`,
+          `Iniciando download de ${filesToEnqueue.length} arquivo(s) com criação das mesmas pastas!`,
           'success'
         );
       } else {
-        showToast('Esta pasta só contém subpastas. Selecione as pastas que deseja baixar.', 'info');
+        showToast('Nenhum arquivo disponível para download.', 'info');
       }
       return;
     }
@@ -376,7 +390,7 @@ export default function App() {
 
   const handleStopDownload = () => {
     downloadManager.pause();
-    showToast('Downloads interrompidos/pausados.', 'info');
+    showToast('Download interrompido/pausado.', 'info');
   };
 
   const handleDownloadSelected = async () => {
@@ -388,33 +402,45 @@ export default function App() {
       handleQuickSetDownloads();
     }
 
+    const currentFolderSegments = getCurrentFolderPath();
     const filesToEnqueue: { file: DriveFile; pathSegments: string[] }[] = [];
 
     for (const item of selectedItems) {
       if (item.isFolder) {
-        showToast(`Explorando subpastas de "${item.name}"...`, 'info');
-        const recursiveFiles = await listAllFilesRecursively(token, item.id, [item.name]);
+        showToast(`Mapeando subpastas de "${item.name}"...`, 'info');
+        const recursiveFiles = await listAllFilesRecursively(token, item.id, [
+          ...currentFolderSegments,
+          item.name,
+        ]);
         filesToEnqueue.push(...recursiveFiles);
       } else {
-        filesToEnqueue.push({ file: item, pathSegments: [] });
+        filesToEnqueue.push({ file: item, pathSegments: currentFolderSegments });
       }
     }
 
     downloadManager.enqueueFiles(filesToEnqueue);
     showToast(
-      `${filesToEnqueue.length} arquivo(s) adicionados à fila de aceleração turbo!`,
+      `${filesToEnqueue.length} arquivo(s) enfileirados recriando a mesma estrutura de pastas!`,
       'success'
     );
   };
 
   const handleDownloadSingle = async (file: DriveFile) => {
     if (!token) return;
+    const currentFolderSegments = getCurrentFolderPath();
     if (file.isFolder) {
-      const recursiveFiles = await listAllFilesRecursively(token, file.id, [file.name]);
+      showToast(`Mapeando pasta "${file.name}"...`, 'info');
+      const recursiveFiles = await listAllFilesRecursively(token, file.id, [
+        ...currentFolderSegments,
+        file.name,
+      ]);
       downloadManager.enqueueFiles(recursiveFiles);
-      showToast(`Pasta "${file.name}" (${recursiveFiles.length} arquivos) enfileirada!`, 'success');
+      showToast(
+        `Pasta "${file.name}" (${recursiveFiles.length} arquivos) enfileirada com estrutura idêntica!`,
+        'success'
+      );
     } else {
-      downloadManager.enqueueFiles([{ file, pathSegments: [] }]);
+      downloadManager.enqueueFiles([{ file, pathSegments: currentFolderSegments }]);
       showToast(`Download de "${file.name}" iniciado!`, 'success');
     }
   };
